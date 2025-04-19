@@ -1,6 +1,5 @@
 #pragma once
-#include "esphome/core/component.h"
-#include "esphome/core/log.h"
+#include "esphome.h"
 #include <WiFiUDP.h>
 #include <vector>
 

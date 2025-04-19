@@ -1,5 +1,5 @@
 #include "CppUTest/TestHarness.h"
-#include "components/wiz_client.h"
+#include "components/wiz_client/wiz_client.h"
 #include <string>
 
 // A test subclass to expose internal behavior
