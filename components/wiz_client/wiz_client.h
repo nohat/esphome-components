@@ -1,12 +1,13 @@
 #pragma once
-#include "esphome.h"
+#include "esphome/core/component.h"  // Use the correct Component definition
+#include "esphome/core/log.h"        // For ESP_LOGD and ESP_LOGW
 #include <ESP8266WiFi.h>
 #include <WiFiUdp.h>
 #include <vector>
 
 namespace wiz_client {
 
-class WizClient : public Component {
+class WizClient : public esphome::Component {
  public:
   WizClient() : brightness_(100) {}
 
