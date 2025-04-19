@@ -1,6 +1,6 @@
 CC = g++
-CFLAGS = -I../components -I/usr/local/include -g -Wall
-LDFLAGS = -L/usr/local/lib -lCppUTest -lCppUTestExt
+CFLAGS = -I.. -I./mocks -I/usr/include/CppUTest -g -Wall
+LDFLAGS = -L/usr/lib -lCppUTest -lCppUTestExt
 
 all: run_tests
 

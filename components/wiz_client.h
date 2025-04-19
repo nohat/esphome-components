@@ -1,5 +1,6 @@
 #pragma once
-#include "esphome.h"
+#include "esphome/core/component.h"
+#include "esphome/core/log.h"
 #include <WiFiUDP.h>
 #include <vector>
 
@@ -45,8 +46,8 @@ class WizClient : public Component {
   }
 
  protected:
-  // Send UDP packet to all registered bulbs
-  void send_udp(const char* data, size_t len) {
+  // Make send_udp virtual so that it can be overridden in tests.
+  virtual void send_udp(const char* data, size_t len) {
     for (auto &ip : ips_) {
       udp_.beginPacket(ip, 38899);
       udp_.write((const uint8_t*)data, len);
