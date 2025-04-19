@@ -30,7 +30,7 @@ class WizClient : public esphome::Component {
     brightness_ = std::max(0, std::min(brightness, 100));
     char buf[128];
     int len = snprintf(buf, sizeof(buf),
-      "{\"method\":\"setPilot\",\"params\":{\"brightness\":%d}}",
+      "{\"method\":\"setPilot\",\"params\":{\"dimming\":%d}}", pct);
       brightness_);
     send_udp(buf, len);
   }
@@ -39,7 +39,7 @@ class WizClient : public esphome::Component {
     temp = std::max(1700, std::min(temp, 6500));
     char buf[128];
     int len = snprintf(buf, sizeof(buf),
-      "{\"method\":\"setPilot\",\"params\":{\"mode\":\"white\",\"temp\":%d,\"brightness\":%d}}",
+      "{\"method\":\"setPilot\",\"params\":{\"mode\":\"white\",\"temp\":%d,\"dimming\":%d}}",
       temp, brightness_);
     send_udp(buf, len);
   }
