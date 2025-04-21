@@ -42,6 +42,14 @@ namespace wiz_client
       send_udp(buf, len);
     }
 
+    void set_power(bool on)
+    {
+      const char* tpl = R"({"method":"setPilot","params":{"state":%s}})";
+      char buf[96];
+      snprintf(buf, sizeof(buf), tpl, on ? "true" : "false");
+      send_udp(buf, strlen(buf));
+    }
+
     void set_color_temperature(int temp)
     {
       temp = std::max(1700, std::min(temp, 6500));
