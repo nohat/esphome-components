@@ -33,11 +33,12 @@ namespace wiz_client
       }
     }
 
-    void set_brightness(int brightness)
+    void set_brightness(int pct)
     {
-      brightness_ = std::max(0, std::min(brightness, 100));
+      pct = std::max(10, std::min(pct, 100));
+      brightness_ = pct;
       char buf[128];
-      int len = snprintf(buf, sizeof(buf), "{\"method\":\"setPilot\",\"params\":{\"dimming\":%d}}", brightness_);
+      int len = snprintf(buf, sizeof(buf), "{\"method\":\"setPilot\",\"params\":{\"state\":true,\"dimming\":%d}}", brightness_);
       send_udp(buf, len);
     }
 
