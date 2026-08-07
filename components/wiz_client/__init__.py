@@ -7,6 +7,8 @@ from esphome.const import CONF_ID
 CONF_BULBS = 'bulbs'
 CONF_INITIAL_BRIGHTNESS = 'initial_brightness'
 CONF_INITIAL_COLOR_TEMPERATURE = 'initial_temp'
+CONF_DISCOVERY = 'discovery'
+CONF_DISCOVERY_INTERVAL = 'discovery_interval'
 
 # Create a namespace matching your C++ namespace (wiz_client)
 wiz_client_ns = cg.esphome_ns.namespace('wiz_client')
@@ -23,6 +25,11 @@ definition = cv.Schema({
     cv.Optional(CONF_BULBS, default=[]): cv.ensure_list(cv.string),
     cv.Optional(CONF_INITIAL_BRIGHTNESS, default=100): cv.int_range(0, 100),
     cv.Optional(CONF_INITIAL_COLOR_TEMPERATURE, default=2700): cv.int_range(1700, 6500),
+    # MAC-form targets are resolved by broadcasting a WiZ getPilot probe and
+    # matching the MAC in each reply. Only sent when at least one target is a
+    # MAC, so an IP-only config never puts a packet on the wire for this.
+    cv.Optional(CONF_DISCOVERY, default=True): cv.boolean,
+    cv.Optional(CONF_DISCOVERY_INTERVAL, default='1h'): cv.positive_time_period_milliseconds,
 })
 
 # Extend the base component schema so ESPHome can recognize
@@ -41,3 +48,6 @@ async def to_code(config):
     # Set initial brightness and color temperature
     cg.add(var.set_brightness(config[CONF_INITIAL_BRIGHTNESS]))
     cg.add(var.set_color_temperature(config[CONF_INITIAL_COLOR_TEMPERATURE]))
+
+    cg.add(var.set_discovery(config[CONF_DISCOVERY]))
+    cg.add(var.set_discovery_interval(config[CONF_DISCOVERY_INTERVAL]))
