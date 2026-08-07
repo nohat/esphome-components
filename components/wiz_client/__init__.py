@@ -14,12 +14,13 @@ wiz_client_ns = cg.esphome_ns.namespace('wiz_client')
 WizClient = wiz_client_ns.class_('WizClient', cg.Component)
 
 # Define the schema for the wiz_client: YAML block
+#
+# `bulbs` is optional: it seeds the target list at compile time, but the list
+# can be replaced at runtime with `id(wiz).set_targets("ip,ip,...")`, so a
+# config that drives targets from Home Assistant may omit it entirely.
 definition = cv.Schema({
     cv.GenerateID(): cv.declare_id(WizClient),
-    cv.Required(CONF_BULBS): cv.All(
-        cv.ensure_list(cv.string),
-        cv.Length(min=1)
-    ),
+    cv.Optional(CONF_BULBS, default=[]): cv.ensure_list(cv.string),
     cv.Optional(CONF_INITIAL_BRIGHTNESS, default=100): cv.int_range(0, 100),
     cv.Optional(CONF_INITIAL_COLOR_TEMPERATURE, default=2700): cv.int_range(1700, 6500),
 })

@@ -1,0 +1,7 @@
+# Host test build artifacts
+tests/run_tests
+tests/*.dSYM/
+
+# Python bytecode from ESPHome codegen
+__pycache__/
+*.py[cod]
