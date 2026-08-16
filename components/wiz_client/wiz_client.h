@@ -261,13 +261,40 @@ namespace wiz_client
       send_udp(buf, strlen(buf));
     }
 
+    // Remember a color temperature without putting a packet on the wire.
+    // This is the store a Home Assistant sensor import feeds continuously:
+    // a bulb that is OFF must not be woken just because the house's target
+    // moved, so the value only reaches a bulb inside set_on() /
+    // set_color_temperature().
+    void store_color_temperature(int temp)
+    {
+      color_temp_ = std::max(1700, std::min(temp, 6500));
+    }
+
     void set_color_temperature(int temp)
     {
-      temp = std::max(1700, std::min(temp, 6500));
+      store_color_temperature(temp);
       char buf[128];
       int len = snprintf(buf, sizeof(buf),
                          "{\"method\":\"setPilot\",\"params\":{\"mode\":\"white\",\"temp\":%d,\"dimming\":%d}}",
-                         temp, brightness_);
+                         color_temp_, brightness_);
+      send_udp(buf, len);
+    }
+
+    // Turn on at a brightness WITH the stored color temperature in the same
+    // datagram. A brightness-only turn-on lets the bulb restore whatever
+    // stale white it last held, and nothing upstream can correct it — this
+    // transport is invisible to Home Assistant, so Adaptive Lighting never
+    // hears about the turn-on at all (CA bathroom, 2026-08-15). Seeding the
+    // stored temp makes the bulb start where the house's curve already is.
+    void set_on(int pct)
+    {
+      pct = std::max(10, std::min(pct, 100));
+      brightness_ = pct;
+      char buf[160];
+      int len = snprintf(buf, sizeof(buf),
+                         "{\"method\":\"setPilot\",\"params\":{\"state\":true,\"mode\":\"white\",\"temp\":%d,\"dimming\":%d}}",
+                         color_temp_, brightness_);
       send_udp(buf, len);
     }
 
@@ -477,6 +504,7 @@ namespace wiz_client
     WiFiUDP udp_;
     std::vector<Target> targets_;
     int brightness_;
+    int color_temp_{2700};
     bool discovery_enabled_{true};
     uint32_t discovery_interval_ms_{3600000};
     uint32_t last_discovery_{0};

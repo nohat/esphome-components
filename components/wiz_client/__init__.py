@@ -45,9 +45,13 @@ async def to_code(config):
     for ip_str in config[CONF_BULBS]:
         cg.add(var.add_bulb(ip_str))
 
-    # Set initial brightness and color temperature
+    # Set initial brightness and color temperature. The temp is only STORED
+    # at boot (store_color_temperature), never sent: setup runs before WiFi
+    # is up, and a boot must not repaint bulbs that are already lit. The
+    # brightness setter does emit a packet, but with no link it goes nowhere,
+    # which has always been the (harmless) behavior here.
     cg.add(var.set_brightness(config[CONF_INITIAL_BRIGHTNESS]))
-    cg.add(var.set_color_temperature(config[CONF_INITIAL_COLOR_TEMPERATURE]))
+    cg.add(var.store_color_temperature(config[CONF_INITIAL_COLOR_TEMPERATURE]))
 
     cg.add(var.set_discovery(config[CONF_DISCOVERY]))
     cg.add(var.set_discovery_interval(config[CONF_DISCOVERY_INTERVAL]))
