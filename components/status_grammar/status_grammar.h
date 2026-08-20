@@ -96,6 +96,23 @@ class Renderer {
     vacancy_presence_clear_ = presence_clear;
   }
   void vacancy_timeout_cancel() { vacancy_total_ = 0; }
+
+  // Motion / presence acknowledgment: opening-impulse timing on the channel
+  // opposite the current application mirror (or idle normal when mirror is off).
+  // Coalesces within 500 ms so a flapping PIR cannot strobe the LED.
+  void presence_acknowledged(uint32_t now) {
+    if (presence_started_ != UINT32_MAX &&
+        (uint32_t) (now - presence_started_) < 500)
+      return;
+    presence_started_ = now;
+    // Milfra-style mirror: off lives on normal, on lives on exception.
+    // Contrast against whichever channel currently carries the settled status.
+    if (mirror_enabled_)
+      presence_on_exception_ = !mirror_state_;
+    else
+      presence_on_exception_ = true;
+  }
+
   void warning_set(bool active) { fault_ = active ? FaultState::WARNING : FaultState::NONE; }
   void fatal_fault_set(bool active) { fault_ = active ? FaultState::FATAL : FaultState::NONE; }
 
@@ -110,7 +127,13 @@ class Renderer {
     const float vacancy = vacancy_wave_(now);
     if (vacancy >= 0.0f) frame = {vacancy, 0.0f};
 
-    if (cue_ != TransactionState::NONE) apply_cue_(frame, now);
+    // Presence contrast sits with other event cues. Transaction receipt /
+    // completion / failure still win when active, so a motion-driven relay
+    // transition keeps its completion bloom instead of stacking two flashes.
+    if (cue_ != TransactionState::NONE)
+      apply_cue_(frame, now);
+    else
+      apply_presence_cue_(frame, now);
     if (transaction_ == TransactionState::EXECUTING &&
         (uint32_t) (now - transaction_started_) >= 250) {
       frame.normal = raised_cosine_(now - transaction_started_, 900, 0.18f, 0.34f);
@@ -143,6 +166,7 @@ class Renderer {
     if (cue_ == TransactionState::FAILED && cue_t < 320) return "cue.failure";
     if (cue_ == TransactionState::COMPLETED && cue_t < 450) return "cue.completion";
     if (cue_ == TransactionState::RECEIVED && cue_t < 130) return "cue.receipt";
+    if (presence_active_(now)) return "cue.presence";
     if (vacancy_wave_(now) >= 0.0f) return "vacancy.approaching_off";
     const uint32_t boot_t = now - boot_started_;
     if (boot_t < 300) return "boot.normal_test";
@@ -222,6 +246,24 @@ class Renderer {
       frame.exception = (t < 100 || (t >= 220 && t < 320)) ? 1.0f : 0.0f;
     }
   }
+  bool presence_active_(uint32_t now) const {
+    return presence_started_ != UINT32_MAX &&
+           (uint32_t) (now - presence_started_) < 130;
+  }
+  void apply_presence_cue_(LedFrame &frame, uint32_t now) const {
+    if (!presence_active_(now)) return;
+    const uint32_t t = now - presence_started_;
+    const float brightness =
+        t < 20 ? 0.70f * t / 20.0f : (t < 70 ? 0.70f : 0.70f * (130 - t) / 60.0f);
+    // Exclusive with the settled mirror color — no mixed-color flash.
+    if (presence_on_exception_) {
+      frame.normal = 0.0f;
+      frame.exception = brightness;
+    } else {
+      frame.normal = brightness;
+      frame.exception = 0.0f;
+    }
+  }
   float warning_wave_(uint32_t now) const {
     const uint32_t t = now % 3000;
     return (t < 100 || (t >= 220 && t < 320)) ? 1.0f : 0.0f;
@@ -240,10 +282,12 @@ class Renderer {
   FaultState fault_{FaultState::NONE};
   uint32_t boot_started_{0}, base_started_{0}, transaction_started_{0}, cue_started_{0};
   uint32_t hold_started_{0}, last_receipt_{UINT32_MAX - 150};
+  uint32_t presence_started_{UINT32_MAX};
   uint32_t transaction_generation_{0}, cue_generation_{0};
   uint32_t vacancy_total_{0}, vacancy_remaining_{0}, vacancy_sync_{0};
   bool hold_limit_{false}, vacancy_owned_{false}, vacancy_presence_clear_{false};
   bool mirror_enabled_{false}, mirror_state_{false};
+  bool presence_on_exception_{true};
   float idle_{0.10f};
   LedFrame mirror_off_{0.10f, 0.0f};
   LedFrame mirror_on_{0.0f, 0.10f};

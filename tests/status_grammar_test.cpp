@@ -166,3 +166,54 @@ TEST(StatusGrammar, NormalOverlaySuppressesMirrorExceptionChannel) {
   CHECK(vacancy.normal > 0.0f);
   DOUBLES_EQUAL(0.0, vacancy.exception, 0.001);
 }
+
+TEST(StatusGrammar, PresenceCueContrastsMirrorOffWithException) {
+  renderer.set_mirror_levels(0.20f, 0.0f, 0.0f, 0.60f);
+  renderer.set_mirror_enabled(true);
+  renderer.set_connectivity(true, true, 600);
+  renderer.set_mirror_state(false);
+  renderer.presence_acknowledged(1000);
+  STRCMP_EQUAL("cue.presence", renderer.phase_name(1020));
+  auto frame = renderer.render(1050);
+  DOUBLES_EQUAL(0.0, frame.normal, 0.001);
+  DOUBLES_EQUAL(0.70, frame.exception, 0.001);
+  STRCMP_EQUAL("application.mirror_off", renderer.phase_name(1200));
+}
+
+TEST(StatusGrammar, PresenceCueContrastsMirrorOnWithNormal) {
+  renderer.set_mirror_levels(0.20f, 0.0f, 0.0f, 0.60f);
+  renderer.set_mirror_enabled(true);
+  renderer.set_connectivity(true, true, 600);
+  renderer.set_mirror_state(true);
+  renderer.presence_acknowledged(1000);
+  auto frame = renderer.render(1050);
+  DOUBLES_EQUAL(0.70, frame.normal, 0.001);
+  DOUBLES_EQUAL(0.0, frame.exception, 0.001);
+}
+
+TEST(StatusGrammar, PresenceCueCoalescesWithinHalfSecond) {
+  renderer.set_mirror_levels(0.20f, 0.0f, 0.0f, 0.60f);
+  renderer.set_mirror_enabled(true);
+  renderer.set_connectivity(true, true, 600);
+  renderer.set_mirror_state(true);
+  renderer.presence_acknowledged(1000);
+  renderer.presence_acknowledged(1200);
+  // Second call coalesced; cue still ends at 1000+130.
+  STRCMP_EQUAL("application.mirror_on", renderer.phase_name(1200));
+  renderer.presence_acknowledged(1600);
+  STRCMP_EQUAL("cue.presence", renderer.phase_name(1620));
+}
+
+TEST(StatusGrammar, CompletionCuePreemptsPresenceContrast) {
+  renderer.set_mirror_levels(0.20f, 0.0f, 0.0f, 0.60f);
+  renderer.set_mirror_enabled(true);
+  renderer.set_connectivity(true, true, 600);
+  renderer.set_mirror_state(false);
+  renderer.presence_acknowledged(1000);
+  renderer.command_received(1, false, 1010);
+  renderer.execution_completed(1, 1010);
+  auto frame = renderer.render(1050);
+  CHECK(frame.normal > 0.50f);
+  DOUBLES_EQUAL(0.0, frame.exception, 0.001);
+  STRCMP_EQUAL("cue.completion", renderer.phase_name(1050));
+}
