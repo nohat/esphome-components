@@ -4,9 +4,11 @@
 #include "esphome/components/output/float_output.h"
 #include "esphome/components/wifi/wifi_component.h"
 #include "esphome/core/component.h"
+#include "esphome/core/log.h"
 #include <algorithm>
 #include <cmath>
 #include <cstdint>
+#include <cstring>
 
 namespace esphome::status_grammar {
 
@@ -115,6 +117,29 @@ class Renderer {
     return frame;
   }
 
+  const char *phase_name(uint32_t now) const {
+    if (fault_ == FaultState::FATAL) return "fault.fatal";
+    if (fault_ == FaultState::WARNING) return "fault.warning";
+    if (hold_ == HoldDirection::INCREASE)
+      return hold_limit_ ? "hold.increase_limit" : "hold.increase";
+    if (hold_ == HoldDirection::DECREASE)
+      return hold_limit_ ? "hold.decrease_limit" : "hold.decrease";
+    if (transaction_ == TransactionState::EXECUTING &&
+        (uint32_t) (now - transaction_started_) >= 250)
+      return "transaction.activity";
+    const uint32_t cue_t = now - cue_started_;
+    if (cue_ == TransactionState::FAILED && cue_t < 320) return "cue.failure";
+    if (cue_ == TransactionState::COMPLETED && cue_t < 450) return "cue.completion";
+    if (cue_ == TransactionState::RECEIVED && cue_t < 130) return "cue.receipt";
+    if (vacancy_wave_(now) >= 0.0f) return "vacancy.approaching_off";
+    const uint32_t boot_t = now - boot_started_;
+    if (boot_t < 300) return "boot.green_test";
+    if (boot_t < 520) return "boot.red_test";
+    if (base_ == BaseState::WIFI_SEARCH) return "connectivity.wifi_search";
+    if (base_ == BaseState::WIFI_ONLY) return "connectivity.api_pending";
+    return "connectivity.api_ready";
+  }
+
   static float vacancy_window_ms(uint32_t total_ms) {
     return std::min(60000.0f, std::max(15000.0f, total_ms * 0.25f));
   }
@@ -219,6 +244,11 @@ class StatusGrammar : public Component {
                                  api::global_api_server->is_connected_with_state_subscription(), now);
       frame = renderer_.render(now);
     }
+    const char *phase = manual_override_ ? "manual.override" : renderer_.phase_name(now);
+    if (last_phase_ == nullptr || std::strcmp(last_phase_, phase) != 0) {
+      ESP_LOGI("status_grammar", "phase -> %s", phase);
+      last_phase_ = phase;
+    }
     if (normal_output_)
       normal_output_->set_level(std::pow(frame.normal, gamma_correct_) * normal_max_power_);
     if (exception_output_)
@@ -245,6 +275,7 @@ class StatusGrammar : public Component {
   float gamma_correct_{2.8f};
   bool manual_override_{false};
   float manual_normal_{0.0f}, manual_exception_{0.0f};
+  const char *last_phase_{nullptr};
   uint32_t render_interval_{20}, last_render_{0};
 };
 

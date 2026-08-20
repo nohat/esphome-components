@@ -28,8 +28,20 @@ TEST(StatusGrammar, ReadyIsSteadyIdle) {
 }
 
 TEST(StatusGrammar, DualBootTestsExceptionThenTurnsItOff) {
+  STRCMP_EQUAL("boot.green_test", renderer.phase_name(100));
+  STRCMP_EQUAL("boot.red_test", renderer.phase_name(400));
   CHECK(renderer.render(355).exception > 0.0f);
   DOUBLES_EQUAL(0.0, renderer.render(600).exception, 0.0001);
+}
+
+TEST(StatusGrammar, ConnectivityPhasesAreNamed) {
+  renderer.set_connectivity(false, false, 600);
+  STRCMP_EQUAL("connectivity.wifi_search", renderer.phase_name(700));
+  renderer.set_connectivity(true, false, 800);
+  STRCMP_EQUAL("connectivity.api_pending", renderer.phase_name(900));
+  renderer.set_connectivity(true, true, 1000);
+  STRCMP_EQUAL("cue.completion", renderer.phase_name(1050));
+  STRCMP_EQUAL("connectivity.api_ready", renderer.phase_name(1500));
 }
 
 TEST(StatusGrammar, LoggerOnlyApiRemainsWifiOnly) {
