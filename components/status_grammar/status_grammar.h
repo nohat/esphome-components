@@ -211,9 +211,14 @@ class StatusGrammar : public Component {
     const uint32_t now = millis();
     if ((uint32_t) (now - last_render_) < render_interval_) return;
     last_render_ = now;
-    renderer_.set_connectivity(wifi::global_wifi_component->is_connected(),
-                               api::global_api_server->is_connected_with_state_subscription(), now);
-    const LedFrame frame = renderer_.render(now);
+    LedFrame frame;
+    if (manual_override_) {
+      frame = {manual_normal_, manual_exception_};
+    } else {
+      renderer_.set_connectivity(wifi::global_wifi_component->is_connected(),
+                                 api::global_api_server->is_connected_with_state_subscription(), now);
+      frame = renderer_.render(now);
+    }
     if (normal_output_)
       normal_output_->set_level(std::pow(frame.normal, gamma_correct_) * normal_max_power_);
     if (exception_output_)
@@ -227,6 +232,9 @@ class StatusGrammar : public Component {
   void set_idle_brightness(float value) { renderer_.set_idle_brightness(value); }
   void set_render_interval(uint32_t value) { render_interval_ = value; }
   void set_gamma_correct(float value) { gamma_correct_ = value; }
+  void set_manual_override(bool enabled) { manual_override_ = enabled; }
+  void set_manual_normal(float value) { manual_normal_ = std::max(0.0f, std::min(1.0f, value)); }
+  void set_manual_exception(float value) { manual_exception_ = std::max(0.0f, std::min(1.0f, value)); }
   Renderer &renderer() { return renderer_; }
 
  protected:
@@ -235,6 +243,8 @@ class StatusGrammar : public Component {
   output::FloatOutput *exception_output_{nullptr};
   float normal_max_power_{0.35f}, exception_max_power_{0.20f};
   float gamma_correct_{2.8f};
+  bool manual_override_{false};
+  float manual_normal_{0.0f}, manual_exception_{0.0f};
   uint32_t render_interval_{20}, last_render_{0};
 };
 
