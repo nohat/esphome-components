@@ -176,8 +176,8 @@ TEST(StatusGrammar, PresenceCueContrastsMirrorOffWithException) {
   STRCMP_EQUAL("cue.presence", renderer.phase_name(1020));
   auto frame = renderer.render(1050);
   DOUBLES_EQUAL(0.0, frame.normal, 0.001);
-  DOUBLES_EQUAL(0.70, frame.exception, 0.001);
-  STRCMP_EQUAL("application.mirror_off", renderer.phase_name(1200));
+  DOUBLES_EQUAL(0.85, frame.exception, 0.001);
+  STRCMP_EQUAL("application.mirror_off", renderer.phase_name(1400));
 }
 
 TEST(StatusGrammar, PresenceCueContrastsMirrorOnWithNormal) {
@@ -187,7 +187,7 @@ TEST(StatusGrammar, PresenceCueContrastsMirrorOnWithNormal) {
   renderer.set_mirror_state(true);
   renderer.presence_acknowledged(1000);
   auto frame = renderer.render(1050);
-  DOUBLES_EQUAL(0.70, frame.normal, 0.001);
+  DOUBLES_EQUAL(0.85, frame.normal, 0.001);
   DOUBLES_EQUAL(0.0, frame.exception, 0.001);
 }
 
@@ -198,8 +198,8 @@ TEST(StatusGrammar, PresenceCueCoalescesWithinHalfSecond) {
   renderer.set_mirror_state(true);
   renderer.presence_acknowledged(1000);
   renderer.presence_acknowledged(1200);
-  // Second call coalesced; cue still ends at 1000+130.
-  STRCMP_EQUAL("application.mirror_on", renderer.phase_name(1200));
+  // Second call coalesced; cue still ends at 1000+350.
+  STRCMP_EQUAL("application.mirror_on", renderer.phase_name(1400));
   renderer.presence_acknowledged(1600);
   STRCMP_EQUAL("cue.presence", renderer.phase_name(1620));
 }
@@ -216,4 +216,21 @@ TEST(StatusGrammar, CompletionCuePreemptsPresenceContrast) {
   CHECK(frame.normal > 0.50f);
   DOUBLES_EQUAL(0.0, frame.exception, 0.001);
   STRCMP_EQUAL("cue.completion", renderer.phase_name(1050));
+}
+
+TEST(StatusGrammar, ExpiredCompletionDoesNotBlockLaterPresence) {
+  renderer.set_mirror_levels(0.20f, 0.0f, 0.0f, 0.60f);
+  renderer.set_mirror_enabled(true);
+  renderer.set_connectivity(true, true, 600);
+  renderer.set_mirror_state(true);
+  renderer.command_received(1, false, 1000);
+  renderer.execution_completed(1, 1000);
+  // Let the completion bloom expire.
+  (void) renderer.render(1600);
+  STRCMP_EQUAL("application.mirror_on", renderer.phase_name(1600));
+  renderer.presence_acknowledged(1700);
+  STRCMP_EQUAL("cue.presence", renderer.phase_name(1720));
+  auto frame = renderer.render(1750);
+  DOUBLES_EQUAL(0.85, frame.normal, 0.001);
+  DOUBLES_EQUAL(0.0, frame.exception, 0.001);
 }

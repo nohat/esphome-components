@@ -97,8 +97,8 @@ class Renderer {
   }
   void vacancy_timeout_cancel() { vacancy_total_ = 0; }
 
-  // Motion / presence acknowledgment: opening-impulse timing on the channel
-  // opposite the current application mirror (or idle normal when mirror is off).
+  // Motion / presence acknowledgment: short bloom on the channel opposite the
+  // current application mirror (or idle normal when mirror is off).
   // Coalesces within 500 ms so a flapping PIR cannot strobe the LED.
   void presence_acknowledged(uint32_t now) {
     if (presence_started_ != UINT32_MAX &&
@@ -126,6 +126,11 @@ class Renderer {
     }
     const float vacancy = vacancy_wave_(now);
     if (vacancy >= 0.0f) frame = {vacancy, 0.0f};
+
+    // Expired transaction cues must clear — otherwise they permanently block
+    // presence contrast after the first relay completion bloom.
+    if (cue_ != TransactionState::NONE && !cue_active_(now))
+      cue_ = TransactionState::NONE;
 
     // Presence contrast sits with other event cues. Transaction receipt /
     // completion / failure still win when active, so a motion-driven relay
@@ -246,15 +251,30 @@ class Renderer {
       frame.exception = (t < 100 || (t >= 220 && t < 320)) ? 1.0f : 0.0f;
     }
   }
+  bool cue_active_(uint32_t now) const {
+    if (cue_ == TransactionState::NONE) return false;
+    const uint32_t t = now - cue_started_;
+    if (cue_ == TransactionState::RECEIVED) return t < 130;
+    if (cue_ == TransactionState::COMPLETED) return t < 450;
+    if (cue_ == TransactionState::FAILED) return t < 320;
+    return false;
+  }
   bool presence_active_(uint32_t now) const {
     return presence_started_ != UINT32_MAX &&
-           (uint32_t) (now - presence_started_) < 130;
+           (uint32_t) (now - presence_started_) < 350;
   }
   void apply_presence_cue_(LedFrame &frame, uint32_t now) const {
     if (!presence_active_(now)) return;
     const uint32_t t = now - presence_started_;
-    const float brightness =
-        t < 20 ? 0.70f * t / 20.0f : (t < 70 ? 0.70f : 0.70f * (130 - t) / 60.0f);
+    // Longer than a receipt impulse so the opposite color is readable on the
+    // Milfra's shared aperture (rise 30 / hold 200 / fall 120 = 350 ms).
+    float brightness;
+    if (t < 30)
+      brightness = 0.85f * t / 30.0f;
+    else if (t < 230)
+      brightness = 0.85f;
+    else
+      brightness = 0.85f * (350 - t) / 120.0f;
     // Exclusive with the settled mirror color — no mixed-color flash.
     if (presence_on_exception_) {
       frame.normal = 0.0f;
