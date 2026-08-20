@@ -176,8 +176,8 @@ TEST(StatusGrammar, PresenceCueContrastsMirrorOffWithException) {
   STRCMP_EQUAL("cue.presence", renderer.phase_name(1020));
   auto frame = renderer.render(1050);
   DOUBLES_EQUAL(0.0, frame.normal, 0.001);
-  DOUBLES_EQUAL(0.85, frame.exception, 0.001);
-  STRCMP_EQUAL("application.mirror_off", renderer.phase_name(1400));
+  DOUBLES_EQUAL(1.0, frame.exception, 0.001);
+  STRCMP_EQUAL("application.mirror_off", renderer.phase_name(1650));
 }
 
 TEST(StatusGrammar, PresenceCueContrastsMirrorOnWithNormal) {
@@ -187,7 +187,7 @@ TEST(StatusGrammar, PresenceCueContrastsMirrorOnWithNormal) {
   renderer.set_mirror_state(true);
   renderer.presence_acknowledged(1000);
   auto frame = renderer.render(1050);
-  DOUBLES_EQUAL(0.85, frame.normal, 0.001);
+  DOUBLES_EQUAL(1.0, frame.normal, 0.001);
   DOUBLES_EQUAL(0.0, frame.exception, 0.001);
 }
 
@@ -198,8 +198,8 @@ TEST(StatusGrammar, PresenceCueCoalescesWithinHalfSecond) {
   renderer.set_mirror_state(true);
   renderer.presence_acknowledged(1000);
   renderer.presence_acknowledged(1200);
-  // Second call coalesced; cue still ends at 1000+350.
-  STRCMP_EQUAL("application.mirror_on", renderer.phase_name(1400));
+  // Second call coalesced; cue still ends at 1000+600.
+  STRCMP_EQUAL("application.mirror_on", renderer.phase_name(1650));
   renderer.presence_acknowledged(1600);
   STRCMP_EQUAL("cue.presence", renderer.phase_name(1620));
 }
@@ -231,6 +231,6 @@ TEST(StatusGrammar, ExpiredCompletionDoesNotBlockLaterPresence) {
   renderer.presence_acknowledged(1700);
   STRCMP_EQUAL("cue.presence", renderer.phase_name(1720));
   auto frame = renderer.render(1750);
-  DOUBLES_EQUAL(0.85, frame.normal, 0.001);
+  DOUBLES_EQUAL(1.0, frame.normal, 0.001);
   DOUBLES_EQUAL(0.0, frame.exception, 0.001);
 }

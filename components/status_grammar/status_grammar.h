@@ -261,20 +261,20 @@ class Renderer {
   }
   bool presence_active_(uint32_t now) const {
     return presence_started_ != UINT32_MAX &&
-           (uint32_t) (now - presence_started_) < 350;
+           (uint32_t) (now - presence_started_) < 600;
   }
   void apply_presence_cue_(LedFrame &frame, uint32_t now) const {
     if (!presence_active_(now)) return;
     const uint32_t t = now - presence_started_;
-    // Longer than a receipt impulse so the opposite color is readable on the
-    // Milfra's shared aperture (rise 30 / hold 200 / fall 120 = 350 ms).
+    // 600 ms exclusive opposite-color flash — readable on MFA05 digital LEDs
+    // (rise 40 / hold 400 / fall 160).
     float brightness;
-    if (t < 30)
-      brightness = 0.85f * t / 30.0f;
-    else if (t < 230)
-      brightness = 0.85f;
+    if (t < 40)
+      brightness = 1.0f * t / 40.0f;
+    else if (t < 440)
+      brightness = 1.0f;
     else
-      brightness = 0.85f * (350 - t) / 120.0f;
+      brightness = 1.0f * (600 - t) / 160.0f;
     // Exclusive with the settled mirror color — no mixed-color flash.
     if (presence_on_exception_) {
       frame.normal = 0.0f;
