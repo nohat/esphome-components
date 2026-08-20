@@ -5,8 +5,8 @@ LDFLAGS = -L$(CPPUTEST_HOME)/lib -lCppUTest -lCppUTestExt
 
 all: run_tests
 
-run_tests: AllTests.cpp wiz_client_test.cpp ../components/wiz_client/wiz_client.h
-	$(CC) $(CFLAGS) -o run_tests AllTests.cpp wiz_client_test.cpp $(LDFLAGS)
+run_tests: AllTests.cpp wiz_client_test.cpp status_grammar_test.cpp ../components/wiz_client/wiz_client.h ../components/status_grammar/status_grammar.h
+	$(CC) $(CFLAGS) -o run_tests AllTests.cpp wiz_client_test.cpp status_grammar_test.cpp $(LDFLAGS)
 
 test: run_tests
 	./run_tests
