@@ -245,9 +245,15 @@ class StatusGrammar : public Component {
       frame = renderer_.render(now);
     }
     const char *phase = manual_override_ ? "manual.override" : renderer_.phase_name(now);
-    if (last_phase_ == nullptr || std::strcmp(last_phase_, phase) != 0) {
+    const bool phase_changed = last_phase_ == nullptr || std::strcmp(last_phase_, phase) != 0;
+    if (phase_changed) {
       ESP_LOGI("status_grammar", "phase -> %s", phase);
       last_phase_ = phase;
+      last_phase_log_ = now;
+    } else if ((uint32_t) (now - last_phase_log_) >= 5000) {
+      ESP_LOGI("status_grammar", "phase = %s; green %.1f%%, red %.1f%%",
+               phase, frame.normal * 100.0f, frame.exception * 100.0f);
+      last_phase_log_ = now;
     }
     if (normal_output_)
       normal_output_->set_level(std::pow(frame.normal, gamma_correct_) * normal_max_power_);
@@ -276,6 +282,7 @@ class StatusGrammar : public Component {
   bool manual_override_{false};
   float manual_normal_{0.0f}, manual_exception_{0.0f};
   const char *last_phase_{nullptr};
+  uint32_t last_phase_log_{0};
   uint32_t render_interval_{20}, last_render_{0};
 };
 
