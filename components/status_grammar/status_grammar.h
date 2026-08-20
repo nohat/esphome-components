@@ -24,7 +24,7 @@ struct LedFrame {
 
 class Renderer {
  public:
-  static constexpr float PI = 3.14159265358979323846f;
+  static constexpr float PI_F = 3.14159265358979323846f;
 
   void begin(uint32_t now) { boot_started_ = now; base_ = BaseState::BOOT; }
   void set_connectivity(bool wifi, bool subscribed_api, uint32_t now) {
@@ -165,7 +165,7 @@ class Renderer {
   static float clamp_(float value) { return std::max(0.0f, std::min(1.0f, value)); }
   static float raised_cosine_(uint32_t elapsed, uint32_t period, float low, float high) {
     const float phase = (elapsed % period) / static_cast<float>(period);
-    return low + (high - low) * (1.0f - std::cos(2.0f * PI * phase)) * 0.5f;
+    return low + (high - low) * (1.0f - std::cos(2.0f * PI_F * phase)) * 0.5f;
   }
   LedFrame base_frame_(uint32_t now) const {
     if ((uint32_t) (now - boot_started_) < 520) {
@@ -195,7 +195,7 @@ class Renderer {
     // Deadline-derived phase avoids resetting progress after overlays/resyncs.
     const float cycles = (vacancy_remaining_ - remaining) * vacancy_cadence(progress) / 1000.0f;
     const float phase = cycles - std::floor(cycles);
-    return 0.03f + 0.15f * (1.0f - std::cos(2.0f * PI * phase)) * 0.5f;
+    return 0.03f + 0.15f * (1.0f - std::cos(2.0f * PI_F * phase)) * 0.5f;
   }
   float hold_wave_(uint32_t now) const {
     if (hold_limit_) return hold_ == HoldDirection::INCREASE ? 0.65f : 0.08f;
