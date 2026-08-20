@@ -38,6 +38,9 @@ class Renderer {
     }
   }
   void set_idle_brightness(float value) { idle_ = clamp_(value); }
+  void force_base(BaseState state, uint32_t now) {
+    if (base_ != state) { base_ = state; base_started_ = now; }
+  }
 
   uint32_t command_received(uint32_t generation, bool remote, uint32_t now) {
     transaction_generation_ = generation;
@@ -240,8 +243,12 @@ class StatusGrammar : public Component {
     if (manual_override_) {
       frame = {manual_normal_, manual_exception_};
     } else {
-      renderer_.set_connectivity(wifi::global_wifi_component->is_connected(),
-                                 api::global_api_server->is_connected_with_state_subscription(), now);
+      if (connectivity_override_ < 0) {
+        renderer_.set_connectivity(wifi::global_wifi_component->is_connected(),
+                                   api::global_api_server->is_connected_with_state_subscription(), now);
+      } else {
+        renderer_.force_base(static_cast<BaseState>(connectivity_override_), now);
+      }
       frame = renderer_.render(now);
     }
     const char *phase = manual_override_ ? "manual.override" : renderer_.phase_name(now);
@@ -271,6 +278,7 @@ class StatusGrammar : public Component {
   void set_manual_override(bool enabled) { manual_override_ = enabled; }
   void set_manual_normal(float value) { manual_normal_ = std::max(0.0f, std::min(1.0f, value)); }
   void set_manual_exception(float value) { manual_exception_ = std::max(0.0f, std::min(1.0f, value)); }
+  void set_connectivity_override(int state) { connectivity_override_ = state; }
   Renderer &renderer() { return renderer_; }
 
  protected:
@@ -283,6 +291,7 @@ class StatusGrammar : public Component {
   float manual_normal_{0.0f}, manual_exception_{0.0f};
   const char *last_phase_{nullptr};
   uint32_t last_phase_log_{0};
+  int connectivity_override_{-1};
   uint32_t render_interval_{20}, last_render_{0};
 };
 
