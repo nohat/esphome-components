@@ -28,8 +28,8 @@ TEST(StatusGrammar, ReadyIsSteadyIdle) {
 }
 
 TEST(StatusGrammar, DualBootTestsExceptionThenTurnsItOff) {
-  STRCMP_EQUAL("boot.green_test", renderer.phase_name(100));
-  STRCMP_EQUAL("boot.red_test", renderer.phase_name(400));
+  STRCMP_EQUAL("boot.normal_test", renderer.phase_name(100));
+  STRCMP_EQUAL("boot.exception_test", renderer.phase_name(400));
   CHECK(renderer.render(355).exception > 0.0f);
   DOUBLES_EQUAL(0.0, renderer.render(600).exception, 0.0001);
 }
@@ -107,4 +107,62 @@ TEST(StatusGrammar, ClearingFaultRecomputesLiveBase) {
   renderer.set_connectivity(true, true, 1000);
   renderer.fatal_fault_set(false);
   DOUBLES_EQUAL(0.10, renderer.render(2000).normal, 0.001);
+}
+
+TEST(StatusGrammar, MirrorMapsBothChannelsAtReady) {
+  renderer.set_mirror_levels(0.22f, 0.03f, 0.04f, 0.61f);
+  renderer.set_mirror_enabled(true);
+  renderer.set_connectivity(true, true, 600);
+  renderer.set_mirror_state(false);
+  auto off = renderer.render(1200);
+  DOUBLES_EQUAL(0.22, off.normal, 0.001);
+  DOUBLES_EQUAL(0.03, off.exception, 0.001);
+  STRCMP_EQUAL("application.mirror_off", renderer.phase_name(1200));
+
+  renderer.set_mirror_state(true);
+  auto on = renderer.render(1300);
+  DOUBLES_EQUAL(0.04, on.normal, 0.001);
+  DOUBLES_EQUAL(0.61, on.exception, 0.001);
+  STRCMP_EQUAL("application.mirror_on", renderer.phase_name(1300));
+}
+
+TEST(StatusGrammar, ConnectivityOverridesMirrorUntilApiReady) {
+  renderer.set_mirror_levels(0.20f, 0.0f, 0.0f, 0.60f);
+  renderer.set_mirror_enabled(true);
+  renderer.set_mirror_state(true);
+  renderer.set_connectivity(false, false, 600);
+  DOUBLES_EQUAL(0.0, renderer.render(600).exception, 0.001);
+  STRCMP_EQUAL("connectivity.wifi_search", renderer.phase_name(600));
+  renderer.set_connectivity(true, false, 700);
+  DOUBLES_EQUAL(0.0, renderer.render(800).exception, 0.001);
+  STRCMP_EQUAL("connectivity.api_pending", renderer.phase_name(800));
+}
+
+TEST(StatusGrammar, ClearingFaultRecomputesCurrentMirrorState) {
+  renderer.set_mirror_levels(0.20f, 0.0f, 0.0f, 0.60f);
+  renderer.set_mirror_enabled(true);
+  renderer.set_connectivity(true, true, 600);
+  renderer.set_mirror_state(false);
+  renderer.fatal_fault_set(true);
+  renderer.set_mirror_state(true);
+  renderer.fatal_fault_set(false);
+  auto frame = renderer.render(1500);
+  DOUBLES_EQUAL(0.0, frame.normal, 0.001);
+  DOUBLES_EQUAL(0.60, frame.exception, 0.001);
+}
+
+TEST(StatusGrammar, NormalOverlaySuppressesMirrorExceptionChannel) {
+  renderer.set_mirror_levels(0.20f, 0.0f, 0.0f, 0.60f);
+  renderer.set_mirror_enabled(true);
+  renderer.set_connectivity(true, true, 600);
+  renderer.set_mirror_state(true);
+  renderer.command_received(1, true, 1000);
+  auto receipt = renderer.render(1050);
+  CHECK(receipt.normal > 0.0f);
+  DOUBLES_EQUAL(0.0, receipt.exception, 0.001);
+
+  renderer.vacancy_timeout_sync(900000, 30000, true, true, 2000);
+  auto vacancy = renderer.render(2100);
+  CHECK(vacancy.normal > 0.0f);
+  DOUBLES_EQUAL(0.0, vacancy.exception, 0.001);
 }

@@ -10,6 +10,11 @@ CONF_EXCEPTION_OUTPUT = "exception_output"
 CONF_NORMAL_MAX_POWER = "normal_max_power"
 CONF_EXCEPTION_MAX_POWER = "exception_max_power"
 CONF_IDLE_BRIGHTNESS = "idle_brightness"
+CONF_MIRROR_ENABLED = "mirror_enabled"
+CONF_MIRROR_OFF_NORMAL = "mirror_off_normal"
+CONF_MIRROR_OFF_EXCEPTION = "mirror_off_exception"
+CONF_MIRROR_ON_NORMAL = "mirror_on_normal"
+CONF_MIRROR_ON_EXCEPTION = "mirror_on_exception"
 CONF_RENDER_INTERVAL = "render_interval"
 CONF_GAMMA_CORRECT = "gamma_correct"
 
@@ -23,6 +28,11 @@ CONFIG_SCHEMA = cv.Schema({
     cv.Optional(CONF_NORMAL_MAX_POWER, default="35%"): cv.percentage,
     cv.Optional(CONF_EXCEPTION_MAX_POWER, default="20%"): cv.percentage,
     cv.Optional(CONF_IDLE_BRIGHTNESS, default="10%"): cv.percentage,
+    cv.Optional(CONF_MIRROR_ENABLED, default=False): cv.boolean,
+    cv.Optional(CONF_MIRROR_OFF_NORMAL, default="10%"): cv.percentage,
+    cv.Optional(CONF_MIRROR_OFF_EXCEPTION, default="0%"): cv.percentage,
+    cv.Optional(CONF_MIRROR_ON_NORMAL, default="0%"): cv.percentage,
+    cv.Optional(CONF_MIRROR_ON_EXCEPTION, default="10%"): cv.percentage,
     cv.Optional(CONF_RENDER_INTERVAL, default="20ms"):
         cv.positive_time_period_milliseconds,
     cv.Optional(CONF_GAMMA_CORRECT, default=2.8): cv.float_range(min=0.0),
@@ -40,5 +50,12 @@ async def to_code(config):
     cg.add(var.set_normal_max_power(config[CONF_NORMAL_MAX_POWER]))
     cg.add(var.set_exception_max_power(config[CONF_EXCEPTION_MAX_POWER]))
     cg.add(var.set_idle_brightness(config[CONF_IDLE_BRIGHTNESS]))
+    cg.add(var.set_mirror_enabled(config[CONF_MIRROR_ENABLED]))
+    cg.add(var.set_mirror_levels(
+        config[CONF_MIRROR_OFF_NORMAL],
+        config[CONF_MIRROR_OFF_EXCEPTION],
+        config[CONF_MIRROR_ON_NORMAL],
+        config[CONF_MIRROR_ON_EXCEPTION],
+    ))
     cg.add(var.set_render_interval(config[CONF_RENDER_INTERVAL]))
     cg.add(var.set_gamma_correct(config[CONF_GAMMA_CORRECT]))

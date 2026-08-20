@@ -38,6 +38,13 @@ class Renderer {
     }
   }
   void set_idle_brightness(float value) { idle_ = clamp_(value); }
+  void set_mirror_enabled(bool enabled) { mirror_enabled_ = enabled; }
+  void set_mirror_state(bool state) { mirror_state_ = state; }
+  void set_mirror_levels(float off_normal, float off_exception,
+                         float on_normal, float on_exception) {
+    mirror_off_ = {clamp_(off_normal), clamp_(off_exception)};
+    mirror_on_ = {clamp_(on_normal), clamp_(on_exception)};
+  }
   void force_base(BaseState state, uint32_t now) {
     if (base_ != state) { base_ = state; base_started_ = now; }
   }
@@ -93,7 +100,7 @@ class Renderer {
   void fatal_fault_set(bool active) { fault_ = active ? FaultState::FATAL : FaultState::NONE; }
 
   LedFrame render(uint32_t now) const {
-    LedFrame frame{base_wave_(now), 0.0f};
+    LedFrame frame = base_frame_(now);
     const uint32_t boot_t = now - boot_started_;
     if (boot_t >= 300 && boot_t < 520) {
       const uint32_t t = boot_t - 300;
@@ -101,13 +108,15 @@ class Renderer {
                                 : 0.35f * (220 - t) / 110.0f;
     }
     const float vacancy = vacancy_wave_(now);
-    if (vacancy >= 0.0f) frame.normal = vacancy;
+    if (vacancy >= 0.0f) frame = {vacancy, 0.0f};
 
     if (cue_ != TransactionState::NONE) apply_cue_(frame, now);
     if (transaction_ == TransactionState::EXECUTING &&
-        (uint32_t) (now - transaction_started_) >= 250)
+        (uint32_t) (now - transaction_started_) >= 250) {
       frame.normal = raised_cosine_(now - transaction_started_, 900, 0.18f, 0.34f);
-    if (hold_ != HoldDirection::NONE) frame.normal = hold_wave_(now);
+      frame.exception = 0.0f;
+    }
+    if (hold_ != HoldDirection::NONE) frame = {hold_wave_(now), 0.0f};
 
     if (fault_ == FaultState::WARNING)
       frame.exception = warning_wave_(now);
@@ -136,10 +145,11 @@ class Renderer {
     if (cue_ == TransactionState::RECEIVED && cue_t < 130) return "cue.receipt";
     if (vacancy_wave_(now) >= 0.0f) return "vacancy.approaching_off";
     const uint32_t boot_t = now - boot_started_;
-    if (boot_t < 300) return "boot.green_test";
-    if (boot_t < 520) return "boot.red_test";
+    if (boot_t < 300) return "boot.normal_test";
+    if (boot_t < 520) return "boot.exception_test";
     if (base_ == BaseState::WIFI_SEARCH) return "connectivity.wifi_search";
     if (base_ == BaseState::WIFI_ONLY) return "connectivity.api_pending";
+    if (mirror_enabled_) return mirror_state_ ? "application.mirror_on" : "application.mirror_off";
     return "connectivity.api_ready";
   }
 
@@ -157,22 +167,23 @@ class Renderer {
     const float phase = (elapsed % period) / static_cast<float>(period);
     return low + (high - low) * (1.0f - std::cos(2.0f * PI * phase)) * 0.5f;
   }
-  float base_wave_(uint32_t now) const {
+  LedFrame base_frame_(uint32_t now) const {
     if ((uint32_t) (now - boot_started_) < 520) {
       const uint32_t t = now - boot_started_;
-      if (t < 150) return 0.60f * t / 150.0f;
-      if (t < 300) return 0.60f * (300 - t) / 150.0f;
-      return 0.0f;
+      if (t < 150) return {0.60f * t / 150.0f, 0.0f};
+      if (t < 300) return {0.60f * (300 - t) / 150.0f, 0.0f};
+      return {0.0f, 0.0f};
     }
     if (base_ == BaseState::WIFI_SEARCH)
-      return raised_cosine_(now - base_started_, 2400, 0.0f, 0.35f);
+      return {raised_cosine_(now - base_started_, 2400, 0.0f, 0.35f), 0.0f};
     if (base_ == BaseState::WIFI_ONLY) {
       const uint32_t t = (now - base_started_) % 2000;
-      if (t < 40) return 0.08f + 0.27f * t / 40.0f;
-      if (t < 180) return 0.35f - 0.27f * (t - 40) / 140.0f;
-      return 0.08f;
+      if (t < 40) return {0.08f + 0.27f * t / 40.0f, 0.0f};
+      if (t < 180) return {0.35f - 0.27f * (t - 40) / 140.0f, 0.0f};
+      return {0.08f, 0.0f};
     }
-    return idle_;
+    if (mirror_enabled_) return mirror_state_ ? mirror_on_ : mirror_off_;
+    return {idle_, 0.0f};
   }
   float vacancy_wave_(uint32_t now) const {
     if (!vacancy_total_ || !vacancy_owned_ || !vacancy_presence_clear_) return -1.0f;
@@ -202,9 +213,12 @@ class Renderer {
     const uint32_t t = now - cue_started_;
     if (cue_ == TransactionState::RECEIVED && t < 130) {
       frame.normal = t < 20 ? 0.70f * t / 20.0f : (t < 70 ? 0.70f : 0.70f * (130 - t) / 60.0f);
+      frame.exception = 0.0f;
     } else if (cue_ == TransactionState::COMPLETED && t < 450) {
       frame.normal = t < 30 ? 0.75f * t / 30.0f : (t < 150 ? 0.75f : 0.75f * (450 - t) / 300.0f);
+      frame.exception = 0.0f;
     } else if (cue_ == TransactionState::FAILED && t < 320) {
+      frame.normal = 0.0f;
       frame.exception = (t < 100 || (t >= 220 && t < 320)) ? 1.0f : 0.0f;
     }
   }
@@ -229,7 +243,10 @@ class Renderer {
   uint32_t transaction_generation_{0}, cue_generation_{0};
   uint32_t vacancy_total_{0}, vacancy_remaining_{0}, vacancy_sync_{0};
   bool hold_limit_{false}, vacancy_owned_{false}, vacancy_presence_clear_{false};
+  bool mirror_enabled_{false}, mirror_state_{false};
   float idle_{0.10f};
+  LedFrame mirror_off_{0.10f, 0.0f};
+  LedFrame mirror_on_{0.0f, 0.10f};
 };
 
 class StatusGrammar : public Component {
@@ -258,7 +275,7 @@ class StatusGrammar : public Component {
       last_phase_ = phase;
       last_phase_log_ = now;
     } else if ((uint32_t) (now - last_phase_log_) >= 5000) {
-      ESP_LOGI("status_grammar", "phase = %s; green %.1f%%, red %.1f%%",
+      ESP_LOGI("status_grammar", "phase = %s; normal %.1f%%, exception %.1f%%",
                phase, frame.normal * 100.0f, frame.exception * 100.0f);
       last_phase_log_ = now;
     }
@@ -273,6 +290,12 @@ class StatusGrammar : public Component {
   void set_normal_max_power(float value) { normal_max_power_ = value; }
   void set_exception_max_power(float value) { exception_max_power_ = value; }
   void set_idle_brightness(float value) { renderer_.set_idle_brightness(value); }
+  void set_mirror_enabled(bool enabled) { renderer_.set_mirror_enabled(enabled); }
+  void set_mirror_state(bool state) { renderer_.set_mirror_state(state); }
+  void set_mirror_levels(float off_normal, float off_exception,
+                         float on_normal, float on_exception) {
+    renderer_.set_mirror_levels(off_normal, off_exception, on_normal, on_exception);
+  }
   void set_render_interval(uint32_t value) { render_interval_ = value; }
   void set_gamma_correct(float value) { gamma_correct_ = value; }
   void set_manual_override(bool enabled) { manual_override_ = enabled; }
