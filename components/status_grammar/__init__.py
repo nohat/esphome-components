@@ -11,6 +11,7 @@ CONF_NORMAL_MAX_POWER = "normal_max_power"
 CONF_EXCEPTION_MAX_POWER = "exception_max_power"
 CONF_IDLE_BRIGHTNESS = "idle_brightness"
 CONF_RENDER_INTERVAL = "render_interval"
+CONF_GAMMA_CORRECT = "gamma_correct"
 
 ns = cg.esphome_ns.namespace("status_grammar")
 StatusGrammar = ns.class_("StatusGrammar", cg.Component)
@@ -24,6 +25,7 @@ CONFIG_SCHEMA = cv.Schema({
     cv.Optional(CONF_IDLE_BRIGHTNESS, default="10%"): cv.percentage,
     cv.Optional(CONF_RENDER_INTERVAL, default="20ms"):
         cv.positive_time_period_milliseconds,
+    cv.Optional(CONF_GAMMA_CORRECT, default=2.8): cv.float_range(min=0.0),
 }).extend(cv.COMPONENT_SCHEMA)
 
 
@@ -39,4 +41,4 @@ async def to_code(config):
     cg.add(var.set_exception_max_power(config[CONF_EXCEPTION_MAX_POWER]))
     cg.add(var.set_idle_brightness(config[CONF_IDLE_BRIGHTNESS]))
     cg.add(var.set_render_interval(config[CONF_RENDER_INTERVAL]))
-
+    cg.add(var.set_gamma_correct(config[CONF_GAMMA_CORRECT]))

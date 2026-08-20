@@ -89,6 +89,12 @@ class Renderer {
 
   LedFrame render(uint32_t now) const {
     LedFrame frame{base_wave_(now), 0.0f};
+    const uint32_t boot_t = now - boot_started_;
+    if (boot_t >= 300 && boot_t < 520) {
+      const uint32_t t = boot_t - 300;
+      frame.exception = t < 110 ? 0.35f * t / 110.0f
+                                : 0.35f * (220 - t) / 110.0f;
+    }
     const float vacancy = vacancy_wave_(now);
     if (vacancy >= 0.0f) frame.normal = vacancy;
 
@@ -208,8 +214,10 @@ class StatusGrammar : public Component {
     renderer_.set_connectivity(wifi::global_wifi_component->is_connected(),
                                api::global_api_server->is_connected_with_state_subscription(), now);
     const LedFrame frame = renderer_.render(now);
-    if (normal_output_) normal_output_->set_level(frame.normal * normal_max_power_);
-    if (exception_output_) exception_output_->set_level(frame.exception * exception_max_power_);
+    if (normal_output_)
+      normal_output_->set_level(std::pow(frame.normal, gamma_correct_) * normal_max_power_);
+    if (exception_output_)
+      exception_output_->set_level(std::pow(frame.exception, gamma_correct_) * exception_max_power_);
   }
   float get_setup_priority() const override { return setup_priority::HARDWARE - 1.0f; }
   void set_normal_output(output::FloatOutput *output) { normal_output_ = output; }
@@ -218,6 +226,7 @@ class StatusGrammar : public Component {
   void set_exception_max_power(float value) { exception_max_power_ = value; }
   void set_idle_brightness(float value) { renderer_.set_idle_brightness(value); }
   void set_render_interval(uint32_t value) { render_interval_ = value; }
+  void set_gamma_correct(float value) { gamma_correct_ = value; }
   Renderer &renderer() { return renderer_; }
 
  protected:
@@ -225,6 +234,7 @@ class StatusGrammar : public Component {
   output::FloatOutput *normal_output_{nullptr};
   output::FloatOutput *exception_output_{nullptr};
   float normal_max_power_{0.35f}, exception_max_power_{0.20f};
+  float gamma_correct_{2.8f};
   uint32_t render_interval_{20}, last_render_{0};
 };
 

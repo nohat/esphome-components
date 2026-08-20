@@ -27,6 +27,11 @@ TEST(StatusGrammar, ReadyIsSteadyIdle) {
   DOUBLES_EQUAL(0.10, renderer.render(9200).normal, 0.001);
 }
 
+TEST(StatusGrammar, DualBootTestsExceptionThenTurnsItOff) {
+  CHECK(renderer.render(355).exception > 0.0f);
+  DOUBLES_EQUAL(0.0, renderer.render(600).exception, 0.0001);
+}
+
 TEST(StatusGrammar, LoggerOnlyApiRemainsWifiOnly) {
   renderer.set_connectivity(true, false, 600);
   const float pulse = renderer.render(620).normal;
