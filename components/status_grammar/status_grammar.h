@@ -99,10 +99,10 @@ class Renderer {
 
   // Motion / presence acknowledgment: short bloom on the channel opposite the
   // current application mirror (or idle normal when mirror is off).
-  // Coalesces within 500 ms so a flapping PIR cannot strobe the LED.
+  // Coalesces for the full 600 ms cue so a flapping PIR cannot strobe it.
   void presence_acknowledged(uint32_t now) {
     if (presence_started_ != UINT32_MAX &&
-        (uint32_t) (now - presence_started_) < 500)
+        (uint32_t) (now - presence_started_) < 600)
       return;
     presence_started_ = now;
     // Milfra-style mirror: off lives on normal, on lives on exception.
@@ -110,7 +110,7 @@ class Renderer {
     if (mirror_enabled_)
       presence_on_exception_ = !mirror_state_;
     else
-      presence_on_exception_ = true;
+      presence_on_exception_ = false;
   }
 
   void warning_set(bool active) { fault_ = active ? FaultState::WARNING : FaultState::NONE; }

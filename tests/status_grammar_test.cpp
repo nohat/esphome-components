@@ -191,7 +191,7 @@ TEST(StatusGrammar, PresenceCueContrastsMirrorOnWithNormal) {
   DOUBLES_EQUAL(0.0, frame.exception, 0.001);
 }
 
-TEST(StatusGrammar, PresenceCueCoalescesWithinHalfSecond) {
+TEST(StatusGrammar, PresenceCueCoalescesWhileActive) {
   renderer.set_mirror_levels(0.20f, 0.0f, 0.0f, 0.60f);
   renderer.set_mirror_enabled(true);
   renderer.set_connectivity(true, true, 600);
@@ -200,8 +200,16 @@ TEST(StatusGrammar, PresenceCueCoalescesWithinHalfSecond) {
   renderer.presence_acknowledged(1200);
   // Second call coalesced; cue still ends at 1000+600.
   STRCMP_EQUAL("application.mirror_on", renderer.phase_name(1650));
-  renderer.presence_acknowledged(1600);
-  STRCMP_EQUAL("cue.presence", renderer.phase_name(1620));
+  renderer.presence_acknowledged(1700);
+  STRCMP_EQUAL("cue.presence", renderer.phase_name(1720));
+}
+
+TEST(StatusGrammar, SingleChannelPresenceCueUsesNormalOutput) {
+  renderer.set_connectivity(true, true, 600);
+  renderer.presence_acknowledged(1000);
+  auto frame = renderer.render(1050);
+  DOUBLES_EQUAL(1.0, frame.normal, 0.001);
+  DOUBLES_EQUAL(0.0, frame.exception, 0.001);
 }
 
 TEST(StatusGrammar, CompletionCuePreemptsPresenceContrast) {
